@@ -8,7 +8,7 @@ import os
 import json
 import time
 import numpy as np
-#import awscam
+import awscam
 import cv2
 import mo
 import greengrasssdk
@@ -22,20 +22,20 @@ def lambda_handler(event, context):
 client = greengrasssdk.client('iot-data')
 iot_topic = '$aws/things/{}/infer'.format(os.environ['AWS_IOT_THING_NAME'])
 
-INPUT_WIDTH = 224
-INPUT_HEIGHT = 224
+INPUT_WIDTH = 64
+INPUT_HEIGHT = 63
 
 def infinite_infer_run():
     """ Run the DeepLens inference loop frame by frame"""
-    
+
     try:
         # Number of top classes to output
         num_top_k = 2
 
-        
+
         model_type = 'classification'
         model_name = 'image-classification'
-        
+
         with open('labels.txt', 'r') as f:
 	        output_map = [l for l in f]
 
@@ -46,12 +46,12 @@ def infinite_infer_run():
 
         # Optimize the model
         error, model_path = mo.optimize(model_name,INPUT_WIDTH,INPUT_HEIGHT)
-        
+
         # Load the model onto the GPU.
         client.publish(topic=iot_topic, payload='Loading model')
         model = awscam.Model(model_path, {'GPU': 1})
         client.publish(topic=iot_topic, payload='Model loaded')
-        
+
         while True:
             # Get a frame from the video stream
             ret, frame = awscam.getLastFrame()
@@ -81,7 +81,7 @@ def infinite_infer_run():
                 cloud_output[output_map[obj['label']]] = obj['prob']
             client.publish(topic=iot_topic, payload=json.dumps(cloud_output))
     except Exception as ex:
-        print(('Error in lambda {}'.format(ex)))
+      	print('Error in lambda {}'.format(ex))
         client.publish(topic=iot_topic, payload='Error in lambda: {}'.format(ex))
 
 infinite_infer_run()
